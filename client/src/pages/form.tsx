@@ -7,12 +7,21 @@ import { Label } from "@/components/ui/label";
 import { useSurvey } from "@/lib/survey-context";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { questions } from "@/lib/questions";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Send } from "lucide-react";
 
 const QUESTIONS_PER_PAGE = 10;
 
+const RATING_EMOJIS = {
+  1: "😡",
+  2: "😟",
+  3: "😐",
+  4: "🙂",
+  5: "🤩"
+};
+
 export default function FormPage() {
-  const { data, updateAnswer, questions } = useSurvey(); // Use questions from context
+  const { data, updateAnswer } = useSurvey();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(0);
@@ -34,6 +43,11 @@ export default function FormPage() {
   const progress = (Object.keys(data.answers).length / questions.length) * 100;
   const isLastPage = currentPage === totalPages - 1;
 
+  // Check if FDAC note needs to be shown (page 9 starts with Q91, page 8 ends at Q90)
+  // FDAC starts at Q89. Q89 is index 88.
+  // Page 0: 0-9
+  // ...
+  // Page 8: 80-89 (Contains start of FDAC)
   const showFDACNote = currentQuestions.some(q => q.type === "FDAC");
 
   const handleNext = () => {
@@ -130,9 +144,12 @@ export default function FormPage() {
                       />
                       <Label
                         htmlFor={`q${q.id}-${val}`}
-                        className="flex-1 flex flex-col items-center justify-center p-3 rounded-lg border-2 border-muted bg-white hover:bg-slate-50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all"
+                        className="flex-1 flex flex-col items-center justify-center p-3 rounded-lg border-2 border-muted bg-white hover:bg-slate-50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all group"
                       >
-                        <span className="text-xl font-bold mb-1 text-slate-700 peer-data-[state=checked]:text-primary">{val}</span>
+                        <span className="text-2xl mb-1 transform group-hover:scale-110 transition-transform duration-200">
+                          {RATING_EMOJIS[val as keyof typeof RATING_EMOJIS]}
+                        </span>
+                        <span className="text-lg font-bold mb-1 text-slate-700 peer-data-[state=checked]:text-primary">{val}</span>
                         <span className="text-[10px] text-muted-foreground uppercase tracking-wider text-center">
                           {val === 1 ? "Discordo Totalmente" : val === 5 ? "Concordo Totalmente" : " "}
                         </span>

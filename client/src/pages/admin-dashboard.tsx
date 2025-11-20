@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Edit, Save, Search, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Edit, Save, Search, Briefcase, TrendingUp, AlertTriangle, Smile, Frown, Meh } from "lucide-react";
 import { useSurvey } from "@/lib/survey-context";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +30,21 @@ const companiesData = [
   { name: "Educa Brasil", employees: 28 },
   { name: "FinanceGroup", employees: 15 },
   { name: "Retail & Co", employees: 22 },
+];
+
+const npsData = [
+  { name: "Detratores (1-6)", value: 15, fill: "#EF4444", emoji: "😡" },
+  { name: "Neutros (7-8)", value: 35, fill: "#F59E0B", emoji: "😐" },
+  { name: "Promotores (9-10)", value: 50, fill: "#10B981", emoji: "🤩" },
+];
+
+const engagementTrend = [
+  { month: 'Jan', score: 65 },
+  { month: 'Fev', score: 68 },
+  { month: 'Mar', score: 72 },
+  { month: 'Abr', score: 70 },
+  { month: 'Mai', score: 75 },
+  { month: 'Jun', score: 78 },
 ];
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
@@ -81,44 +96,118 @@ export default function AdminDashboard() {
       </header>
 
       <main className="flex-1 container mx-auto p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Respostas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">eNPS (Simulado)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">142</div>
-              <p className="text-xs text-muted-foreground mt-1">+12% desde a última semana</p>
+              <div className="flex items-center gap-2">
+                <div className="text-3xl font-bold text-green-600">+35</div>
+                <Smile className="h-6 w-6 text-green-500" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Zona de Qualidade</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Engajamento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <div className="text-3xl font-bold text-blue-600">78%</div>
+                <TrendingUp className="h-6 w-6 text-blue-500" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">+3% vs mês anterior</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Organizações Ativas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Risco de Turnover</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground mt-1">5 com relatórios pendentes</p>
+               <div className="flex items-center gap-2">
+                <div className="text-3xl font-bold text-red-500">High</div>
+                <AlertTriangle className="h-6 w-6 text-red-500" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Setor de Vendas Crítico</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Risco de Dissonância</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Clima Geral</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-amber-600">Médio</div>
-              <p className="text-xs text-muted-foreground mt-1">Baseado na IA preditiva</p>
+              <div className="text-3xl font-bold">😐 3.8/5</div>
+              <p className="text-xs text-muted-foreground mt-1">Regular (Estável)</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="companies" className="space-y-4">
+        <Tabs defaultValue="analytics" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="analytics" className="gap-2"><TrendingUp className="h-4 w-4" /> Métricas & Clima</TabsTrigger>
             <TabsTrigger value="companies" className="gap-2"><Briefcase className="h-4 w-4" /> Empresas</TabsTrigger>
             <TabsTrigger value="imco" className="gap-2"><LayoutDashboard className="h-4 w-4" /> Dashboard IMCO</TabsTrigger>
             <TabsTrigger value="fdac" className="gap-2"><FileText className="h-4 w-4" /> Dashboard FDAC</TabsTrigger>
             <TabsTrigger value="respondents" className="gap-2"><Users className="h-4 w-4" /> Respondentes</TabsTrigger>
             <TabsTrigger value="questions" className="gap-2"><Edit className="h-4 w-4" /> Gerenciar Perguntas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição eNPS (Satisfação)</CardTitle>
+                  <CardDescription>Classificação dos colaboradores baseada em lealdade</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={npsData} layout="vertical" margin={{ left: 40, right: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis type="category" dataKey="name" width={120} tick={{fontSize: 12}} />
+                      <Tooltip cursor={{fill: 'transparent'}} />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#666' }}>
+                        {npsData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="flex justify-center gap-8 mt-4 text-2xl">
+                    <span title="Detratores">😡</span>
+                    <span title="Neutros">😐</span>
+                    <span title="Promotores">🤩</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tendência de Engajamento</CardTitle>
+                  <CardDescription>Evolução do índice de engajamento semestral</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                   <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={engagementTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="month" />
+                      <YAxis domain={[0, 100]} />
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="score" stroke="#3b82f6" fillOpacity={1} fill="url(#colorScore)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="companies" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
