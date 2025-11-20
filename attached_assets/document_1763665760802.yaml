@@ -1,0 +1,620 @@
+openapi: '3.0.2'
+info:
+  title: ReceitaWS API
+  version: '1.0'
+  description: >-
+    A **API** do [receitaws.com.br](https://receitaws.com.br) é disponibilizada
+    em duas versões, sendo uma versão gratuita e aberta (chamada de **API
+    Pública**), e outra versão autenticada (chamada de **API Comercial**) que
+    deve ser acessada através de uma assinatura de um dos planos disponíveis em
+    nosso site.
+
+    ## API Pública
+
+    O acesso à **API Pública** não requer autenticação, e permite até 3
+    consultas por minuto. Esta API retorna dados apenas para CNPJs que já
+    existem em nosso banco de dados (cache). Caso o CNPJ consultado não
+    esteja em nosso banco de dados, a API retornará um erro indicando que
+    a informação não está disponível em cache.
+
+    ## API Comercial
+
+    ### Uso da defasagem máxima
+
+    Ao realizar uma consulta utilizando esta API, o sistema irá primeiramente
+    verificar se o CNPJ consultado existe em nossa base de dados (cache).
+
+    No caso em que o CNPJ **não está** no cache: a consulta é considerada em
+    tempo real.
+
+    No caso em que o CNPJ **está** no cache: é feita uma comparação entre a
+    data da última atualização deste CNPJ (campo `ultima_atualizacao`) e
+    o parâmetro `days` utilizado na requisição. Se o CNPJ foi atualizado
+    há menos de `days` dias em nossa base de dados, o retorno será dos
+    dados do cache, caso contrário é realizada uma consulta em tempo real.
+
+    ### Uso do fallback
+
+    É possível controlar o comportamento da API em caso de erros ou
+    indisponibilidade da consulta em tempo real através do parâmetro
+    `fallback`. Caso o valor seja `cacheOnError`, que é o valor padrão, e
+    a consulta em tempo real não tenha sido resolvida em até 30 segundos,
+    o retorno será dos dados do cache, caso estejam disponíveis. Caso o
+    valor seja `noCache`, a API não retornará dados do cache em casos de
+    erros ou indisponibilidade da consulta em tempo real.
+
+    ### Consumo dos Limites
+
+    O limite que será consumido durante a consulta é determinado de acordo
+    com a lógica descrita acima, que pode resultar em uma consulta de nosso
+    cache ou uma consulta em tempo real. O limite correspondente será
+    verificado antes da execução da consulta, e será debitado no retorno
+    das informações.
+
+    No caso da requisição precisar de um limite que a conta não tem
+    disponível, o código HTTP de retorno será o `402`.
+
+    ### Timeouts
+
+    Consultas em tempo real podem gerar timeouts devido a natureza da
+    consulta a fonte de dados de terceiros. Nestes casos o código HTTP
+    de retorno será `504` após 50 segundos de execução. Caso a consulta
+    não seja resolvida neste período e este código seja retornado, não
+    há dedução do limite de consultas.
+  termsOfService: 'https://receitaws.com.br/terms.pdf'
+  contact:
+    email: contato@receitaws.com.br
+servers:
+  - url: https://receitaws.com.br/v1
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    accountQuotaResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: OK
+        quota:
+          type: object
+          description: Detalhes sobre a quota disponível
+          properties:
+            from_database:
+              description: Quota disponível para consultas do banco de dados (cache)
+              type: number
+              example: 27212
+            from_external:
+              description: Quota disponível para consultas em tempo real
+              type: number
+              example: 1429
+            next_renewal_date:
+              description: Data da próxima renovação da quota
+              type: string
+              example: "2022-01-05T14:09:27.563Z"
+    callsReportResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: OK
+        calls:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                description: ID da chamada realizada
+                type: string
+              start:
+                description: Horário do início da consulta
+                type: string
+                format: date-time
+                example: "2022-01-05T14:09:27.563Z"
+              end:
+                description: |
+                  Horário do fim da consulta. Este valor pode ser nulo
+                  (**null**) no caso da consulta não ter sido resolvida. É
+                  possível que a diferença entre este campo e o campo **start**
+                  seja maior que 50 segundos, sendo considerado *timeout* e não
+                  sendo contabilizado no uso da quota.
+                type: string
+                format: date-time
+                example: "2022-01-05T14:26:13.912Z"
+              token:
+                description: Nome do token utilizado
+                type: string
+                example: my-token
+              cnpj:
+                description: CNPJ consultado
+                type: string
+                example: "11378117000120"
+              days:
+                description: Defasagem máxima utilizada na consulta
+                type: string
+                example: "10"
+              type:
+                description: Tipo da consulta realizada
+                type: string
+                enum: [ccc, rf]
+                default: rf
+              invalid:
+                description: |
+                  Indica se a o CNPJ consultado era inválido, ou seja, um CNPJ
+                  que foi rejeitado pela Receita Federal. Consultas a CNPJs
+                  inválidos são deduzidos da quota do plano da mesma forma que
+                  CNPJs existentes.
+                type: boolean
+                example: true
+              from_database:
+                description: |
+                  Indica se a consulta foi resolvida utilizando o
+                  banco de dados (cache)
+                type: boolean
+                example: false
+              from_external:
+                description: |
+                  Indica se a consulta foi resolvida utilizando uma
+                  verificação em tempo real na Receita Federal
+                type: boolean
+                example: true
+    rfResultRejected:
+      description: CNPJ Rejeitado
+      type: object
+      properties:
+        status:
+          type: string
+          example: ERROR
+        message:
+          type: string
+          example: CNPJ rejeitado pela Receita Federal
+    resultInvalidCNPJ:
+      description: CNPJ Inválido
+      type: object
+      properties:
+        status:
+          type: string
+          example: ERROR
+        message:
+          type: string
+          example: CNPJ inválido
+    rfResultSuccess:
+      type: object
+      description: Descrição da resposta
+      properties:
+        status:
+          type: string
+          example: OK
+        ultima_atualizacao:
+          description: Data da última atualização dos dados
+          type: string
+          format: date-time
+        cnpj:
+          description: CNPJ da Empresa
+          type: string
+        tipo:
+          description: Tipo da Empresa
+          type: string
+          enum:
+            - MATRIZ
+            - FILIAL
+        porte:
+          description: Porte da Empresa
+          type: string
+        nome:
+          description: Razão Social
+          type: string
+        fantasia:
+          description: Nome Fantasia
+          type: string
+        abertura:
+          description: Data de Abertura
+          type: string
+        atividade_principal:
+          description: Atividade Principal
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                description: Código da Atividade
+                type: string
+              text:
+                description: Descrição da Atividade
+                type: string
+        atividades_secundarias:
+          description: Atividades Secundárias
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                description: Código da Atividade
+                type: string
+              text:
+                description: Descrição da Atividade
+                type: string
+        natureza_juridica:
+          description: Natureza Jurídica
+          type: string
+        logradouro:
+          description: Logradouro
+          type: string
+        numero:
+          description: Número
+          type: string
+        complemento:
+          description: Complemento
+          type: string
+        cep:
+          description: CEP
+          type: string
+        bairro:
+          description: Bairro
+          type: string
+        municipio:
+          description: Município
+          type: string
+        uf:
+          description: Estado
+          type: string
+        email:
+          description: Email
+          type: string
+        telefone:
+          description: Telefone
+          type: string
+        efr:
+          description: Ente Federativo Responsável
+          type: string
+        situacao:
+          description: Situação
+          type: string
+        data_situacao:
+          description: Data da Situação
+          type: string
+        motivo_situacao:
+          description: Motivo da Situação
+          type: string
+        situacao_especial:
+          description: Situação Especial
+          type: string
+        data_situacao_especial:
+          description: Data da Situação Especial
+          type: string
+        capital_social:
+          description: Capital Social
+          type: string
+        qsa:
+          description: Quadro Societário
+          type: array
+          items:
+            type: object
+            properties:
+              nome:
+                description: Nome do Sócio
+                type: string
+              qual:
+                description: Qualificação do Sócio
+                type: string
+              pais_origem:
+                description: País de Origem do Sócio
+                type: string
+              nome_rep_legal:
+                description: Nome do Representante Legal
+                type: string
+              qual_rep_legal:
+                description: Qualificação do Representante Legal
+                type: string
+        simples:
+          description: Opção pelo regime tributário do Simples Nacional
+          type: object
+          properties:
+            optante:
+              description: Optante pelo Simples Nacional
+              type: boolean
+            data_opcao:
+              description: Data da Opção pelo Simples Nacional
+              type: string
+              format: date-time
+            data_exclusao:
+              description: Data da Exclusão do Simples Nacional
+              type: string
+              format: date-time
+            ultima_atualizacao:
+              description: Data da última atualização dos dados referentes ao Simples Nacional
+              type: string
+              format: date-time
+        simei:
+          description: Enquadramento no MEI (Microempreendedor Individual)
+          type: object
+          properties:
+            optante:
+              description: Optante pelo MEI
+              type: boolean
+            data_opcao:
+              description: Data da Opção pelo MEI
+              type: string
+              format: date-time
+            data_exclusao:
+              description: Data da Exclusão do MEI
+              type: string
+              format: date-time
+            ultima_atualizacao:
+              description: Data da última atualização dos dados referentes ao MEI
+              type: string
+              format: date-time
+        billing:
+          description: Informações sobre o uso de limites da consulta
+          type: object
+          properties:
+            free:
+              description: Indica se a consulta utilizou a API Gratuita
+              type: boolean
+            database:
+              description: Indica se a consulta foi resolvida com dados do cache
+              type: boolean
+    cccResultSuccess:
+      type: object
+      description: Descrição da resposta da consulta ao CCC
+      properties:
+        status:
+          type: string
+          example: OK
+        ultima_atualizacao:
+          description: Data da última atualização dos dados
+          type: string
+          format: date-time
+        cnpj:
+          description: CNPJ da Empresa
+          type: string
+        registros:
+          description: Atividades Secundárias
+          type: array
+          items:
+            type: object
+            properties:
+              uf:
+                description: UF da Inscrição Estadual
+                type: string
+              ie:
+                description: Número da Inscrição Estadual
+                type: string
+              tipo_ie:
+                description: Tipo da Inscrição Estadual
+                type: string
+              situacao_ie:
+                description: Situação da Inscrição Estadual
+                type: string
+              data_situacao:
+                description: Data da Situação da Inscrição Estadual
+                type: string
+              regime_icms:
+                description: Regime do ICMS
+                type: string
+              situacao_cnpj:
+                description: Situação do CNPJ na UF
+                type: string
+              data_atualizacao:
+                description: Data da última atualização dos dados deste registro
+                type: string
+        billing:
+          description: Informações sobre o uso de limites da consulta
+          type: object
+          properties:
+            free:
+              description: Indica se a consulta utilizou a API Gratuita
+              type: boolean
+            database:
+              description: Indica se a consulta foi resolvida com dados do cache
+              type: boolean
+
+paths:
+  /cnpj/{cnpj}:
+    get:
+      summary: 'Receita Federal'
+      operationId: queryRFFree
+      tags:
+        - 'API Pública'
+      description: |
+        Método para recuperar as informações de uma empresa brasileira através
+        do seu CNPJ. As informações são exatamente as mesmas informações
+        retornadas pelo site da Receita Federal Brasileira.
+
+        ### Rate Limits
+
+        Esta API permite 3 consultas por minuto. No caso do limite ser
+        excedido, o código HTTP retornado é o `429`.
+
+        ### Timeouts
+
+        Nesta API Pública não há resolução de consultas que precisam dados
+        em tempo real. Os dados são retornados apenas para consultas
+        realizadas no banco de dados. Outras consultas retornam o código
+        HTTP `504` indicando timeout.
+      parameters:
+        - name: cnpj
+          in: path
+          description: CNPJ a ser consultado sem formatação
+          required: true
+          schema:
+            type: string
+            minLength: 14
+            maxLength: 14
+            pattern: '[0-9]*'
+      responses:
+        '200':
+          description: Sucesso (ver possíveis resultados)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/rfResultSuccess'
+                  - $ref: '#/components/schemas/resultInvalidCNPJ'
+                  - $ref: '#/components/schemas/rfResultRejected'
+        '429':
+          description: Too many requests
+        '504':
+          description: Timeout
+
+  /cnpj/{cnpj}/days/{days}:
+    get:
+      summary: 'Receita Federal'
+      operationId: queryRF
+      tags:
+        - 'API Comercial'
+      description: |
+        Método para recuperar as informações da **Receita Federal** sobre uma
+        empresa brasileira através do seu CNPJ e respeitando a defasagem máxima
+        dos dados de acordo com o parâmetro `days`. Os dados retornados neste
+        endpoint são exatamente as mesmas informações retornadas pelo site da
+        Receita Federal Brasileira.
+
+        Consulte informações sobre a API Comercial e seus detalhes [aqui](/).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cnpj
+          in: path
+          description: CNPJ a ser consultado sem formatação
+          required: true
+          schema:
+            type: string
+            minLength: 14
+            maxLength: 14
+            pattern: '[0-9]*'
+        - name: days
+          in: path
+          description: Defasagem máxima dos dados
+          required: true
+          schema:
+            type: number
+            minimum: 0
+            pattern: '[0-9]*'
+        - name: fallback
+          in: query
+          description: Indica a estratégia de fallback da consulta
+          required: false
+          schema:
+            type: string
+            enum: [noCache, cacheOnError]
+            default: cacheOnError
+      responses:
+        '200':
+          description: Sucesso (ver possíveis resultados)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/rfResultSuccess'
+                  - $ref: '#/components/schemas/resultInvalidCNPJ'
+                  - $ref: '#/components/schemas/rfResultRejected'
+        '402':
+          description: Limites de consulta excedido
+        '504':
+          description: Timeout
+
+  /ccc/{cnpj}/days/{days}:
+    get:
+      summary: 'Cadastro de Contribuinte (IE)'
+      operationId: queryCCC
+      tags:
+        - 'API Comercial'
+      description: |
+        Método para recuperar as informações do **Cadastro Centralizado de
+        Contribuinte (CCC)** de uma empresa brasileira através do seu CNPJ e
+        respeitando a defasagem máxima dos dados de acordo com o
+        parâmetro `days`. Os dados retornados neste endpoint são referentes às
+        **Inscrições Estaduais (IE)** da empresa.
+
+        Consulte informações sobre a API Comercial e seus detalhes [aqui](/).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cnpj
+          in: path
+          description: CNPJ a ser consultado sem formatação
+          required: true
+          schema:
+            type: string
+            minLength: 14
+            maxLength: 14
+            pattern: '[0-9]*'
+        - name: days
+          in: path
+          description: Defasagem máxima dos dados
+          required: true
+          schema:
+            type: number
+            minimum: 0
+            pattern: '[0-9]*'
+        - name: fallback
+          in: query
+          description: Indica a estratégia de fallback da consulta
+          required: false
+          schema:
+            type: string
+            enum: [noCache, cacheOnError]
+            default: cacheOnError
+      responses:
+        '200':
+          description: Sucesso (ver possíveis resultados)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/cccResultSuccess'
+                  - $ref: '#/components/schemas/resultInvalidCNPJ'
+        '402':
+          description: Limites de consulta excedido
+        '504':
+          description: Timeout
+
+  /account/quota:
+    get:
+      summary: 'Quota da Conta'
+      operationId: accountQuota
+      tags:
+        - 'API Comercial'
+      description: |
+        Recuperar informações sobre a quota de consultas disponíveis no
+        ciclo atual. As quotas são divididos em consultas realizadas diretamente
+        do nosso banco de dados (cache) e consultas realizadas em tempo real,
+        ou seja, consultas que necessitam uma atualização dos dados junto à
+        Receita Federal.
+
+        As quotas são reiniciadas de acordo com o plano escolhido a cada mês
+        e não são cumulativas.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/accountQuotaResponse'
+
+  /account/calls/report:
+    get:
+      summary: 'Relatório de Consultas Realizadas'
+      operationId: accountCallsReport
+      tags:
+        - 'API Comercial'
+      description: |
+        Recuperar informações sobre os chamadas de API realizadas. Esta API
+        retorna as **10mil** requisições mais recentes, excluindo consultas
+        realizadas nos últimos 2 minutos.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/callsReportResponse'

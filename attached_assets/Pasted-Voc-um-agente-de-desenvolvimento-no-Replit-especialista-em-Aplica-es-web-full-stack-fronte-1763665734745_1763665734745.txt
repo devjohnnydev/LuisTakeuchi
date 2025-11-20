@@ -1,0 +1,432 @@
+Você é um agente de desenvolvimento no Replit, especialista em:
+- Aplicações web full stack (frontend + backend + IA);
+- Segurança da informação, LGPD e boas práticas OWASP;
+- Integração com serviços gratuitos (MongoDB Atlas, Colab, ngrok, etc.);
+- Deploy em Replit com múltiplos serviços.
+
+Sua missão é construir, de ponta a ponta, um sistema web chamado **SIMDCCO**:
+> Sistema Informatizado de Medida de Dissonância de Cultura e Clima Organizacional  
+> (Questionários IMCO – 88 perguntas – + FDAC – 12 perguntas).
+
+O sistema deve ser implementado COMPLETO como um protótipo funcional, pronto para testes, seguindo exatamente as especificações abaixo.
+
+====================================================================
+1. CONTEXTO, OBJETIVO E NOME DO SISTEMA
+====================================================================
+
+Objetivo do SIMDCCO:
+- Coletar respostas de 100 questões (IMCO + FDAC) em escala Likert 1–5.
+- Diagnosticar Clima (IMCO) e Cultura (FDAC) organizacional.
+- Garantir **100% conformidade LGPD** (Lei 13.709/2018).
+- Implementar **anonimização** (hash SHA-256 de CPF, CNPJ, e-mail).
+- Garantir **integridade das respostas via blockchain** (Polygon Mumbai).
+- Gerar dashboards (IMCO, FDAC e integrado).
+- Integrar análises de **Inteligência Artificial (IA)**: clustering (K-means) e predição (regressão).
+- Entregar um **protótipo funcional**, com ~10 respostas de teste, preparado para escalar no futuro.
+
+Stakeholders:
+- Respondentes (funcionários);
+- Gestores de RH (usuários dos relatórios);
+- Administradores ISMCBE (acesso total ao painel admin).
+
+====================================================================
+2. STACK TÉCNICO E ORGANIZAÇÃO DO PROJETO
+====================================================================
+
+Crie o projeto no Replit com a seguinte estrutura de pastas:
+
+- `/frontend`  
+  - Framework: **React 18 + Next.js** (ou React + Vite, se for mais simples no Replit).  
+  - Estilo: **Tailwind CSS** via CDN ou setup simples, com cores padrão: azul, branco e preto (branding ISMCBE).
+  - Responsivo (celular, tablet, desktop).
+
+- `/backend`
+  - Plataforma: **Node.js 20 (LTS)** com **Express**.
+  - Banco de dados: **MongoDB Atlas M0 (512MB)**.
+  - Autenticação: **JWT** (expiração 24h) + **bcrypt** (≥ 12 rounds) para senhas.
+  - Criptografia: usar **libsodium** para AES-256-GCM (dados sensíveis).
+  - Integração com blockchain (Polygon Mumbai) via **ethers.js**.
+  - Integração com IA via chamadas HTTP para microserviço (ver seção IA).
+
+- `/ai`
+  - Linguagem: **Python 3.11**.
+  - Biblioteca IA: **scikit-learn** (K-means, regressão linear).
+  - Exposição: API REST Flask rodando em Colab ou Replit separado, com tunelamento **ngrok**.
+  - Endpoints:
+    - `POST /cluster` – recebe respostas e devolve cluster.
+    - `POST /predict-fairness` – recebe vetores IMCO e devolve risco de dissonância (Fairness).
+
+Configuração Replit:
+- Crie `package.json` no backend e no frontend com todas as dependências.
+- Crie `requirements.txt` no serviço de IA (Flask + scikit-learn + pandas, etc.).
+- Use **Replit Secrets** para:
+  - `MONGODB_URI`
+  - `JWT_SECRET`
+  - `ENCRYPTION_KEY` (AES-256-GCM)
+  - `BLOCKCHAIN_PRIVATE_KEY`
+  - `POLYGON_RPC_URL`
+  - Qualquer credencial de API externa (Twilio, etc., se usar).
+
+====================================================================
+3. REQUISITOS NÃO FUNCIONAIS (RNF)
+====================================================================
+
+Implemente os RNFs abaixo de forma explícita:
+
+RNF-01 – Confidencialidade em repouso  
+- Criptografar dados sensíveis (quando necessário) com AES-256-GCM (via libsodium) no backend antes de gravar no MongoDB.
+
+RNF-02 – Confidencialidade em trânsito  
+- Backend exposto sempre em HTTPS (considere que o tráfego público passa por HTTPS; garantir uso de URLs `https://`).
+- Configurar headers de segurança (HSTS, etc.) com **helmet.js**.
+
+RNF-03 – Integridade das respostas  
+- Para cada resposta completa (100 questões + metadados), gerar um hash SHA-256.
+- Agrupar periodicamente os hashes e gerar uma **árvore de Merkle**.
+- Gravar o **root hash** na blockchain Polygon testnet (Mumbai) uma vez ao dia (ou sob demanda).
+
+RNF-04 – Imutabilidade & auditoria via blockchain  
+- Criar contrato Solidity simples, ex.: `MerkleRootSealer.sol`, com função `sealRoot(bytes32 root)` que grava o root no log/estado.
+- Salvar o `txHash` no documento da resposta ou em coleção específica (`sealTx`).
+
+RNF-05 – Anonimização LGPD  
+- Nunca armazenar CPF, CNPJ ou e-mail em texto puro.
+- Antes de persistir, converter CPF/CNPJ/e-mail em `SHA-256(saltOrganizacao + valor)`.
+- `saltOrganizacao` (32 bytes) gerado no backend por organização.
+
+RNF-06 – Autenticação admin  
+- JWT com expiração de 24h.  
+- Senhas admins hasheadas com `bcrypt` (mínimo 12 rounds).  
+- Opcional: TOTP 2FA (ex.: Google Authenticator) se o tempo permitir.
+
+RNF-07 – Rate-limit / anti-DDoS  
+- Implementar rate limiting no backend (por IP) para endpoints sensíveis (login, envio de respostas).
+
+RNF-08 – Backup criptografado  
+- Prever script (cron / job manual) que faz dump do MongoDB, comprime e criptografa (GPG ou libsodium) e envia para storage S3-like (pode ser Backblaze B2, se for configurar).
+
+RNF-09 – LGPD – direitos do titular  
+- Expor endpoint `/direitos` que receba identificador (CPF ou e-mail em texto puro), gere o hash e retorne os dados relacionados (consulta), e permita solicitação de eliminação/portabilidade.
+
+RNF-10 – RIPD & DPO  
+- Criar um arquivo markdown `docs/RIPD.md` no repositório com:
+  - Finalidade, dados coletados, riscos, mitigações, direitos do titular, contato DPO (ex.: `privacidade@ismcbe.com.br`).
+
+====================================================================
+4. REQUISITOS FUNCIONAIS (RF)
+====================================================================
+
+4.1 Formulário público (IMCO + FDAC)
+
+- Página pública `/form` com:
+  - Mensagem inicial explicativa (IMCO + FDAC, 5 minutos, uso para diagnóstico).
+  - Instruções (todas as perguntas obrigatórias, escala 1–5).
+  - Barra de progresso visual + textual: “Pergunta X/100 – Y% concluído”.
+  - Navegação entre perguntas com botões “Anterior” / “Próximo”.
+  - Botão “Finalizar” apenas na última página.
+
+- Estrutura das perguntas:
+  - 88 questões IMCO (Vetores: Motivação, Liderança, Filosofia de Gestão, Gestão de Pessoas, Natureza do Trabalho).
+  - 12 questões FDAC (Pilares: Fairness, Disclosure, Accountability, Compliance).
+  - Armazene-as em um JSON estruturado no frontend ou backend:
+    - `{ id, texto, vetor, dimensao, tipo: "IMCO|FDAC" }`
+  - Utilize exatamente o enunciado das 100 questões conforme o documento de especificação fornecido pelo cliente (IMCO validado + FDAC teórico).
+
+- Antes das questões FDAC (89–100), exibir nota:  
+  “As perguntas FDAC (Q89 a Q100) estão em fase de validação teórica e podem ser ajustadas em versões futuras do sistema.”
+
+- Validação:
+  - Não permitir envio se houver qualquer questão sem resposta.
+  - Exibir mensagem listando quais questões faltam.
+
+4.2 Identificação do respondente
+
+Campos obrigatórios antes do questionário:
+- CPF (texto, máscara brasileira).
+- CNPJ da organização (texto, máscara brasileira).
+- E-mail.
+- Departamento (texto livre).
+
+Fluxo de validação:
+1. Usuário digita CPF → validar formato e dígitos verificadores localmente.  
+2. Opcional: consultar API gratuita (ex.: ReceitaWS ou similar) para buscar nome – se não for possível, simular/placeholder.  
+3. Usuário digita CNPJ → validar formato e dígitos verificadores, consultar API gratuita de CNPJ (ex.: ReceitaWS) para obter razão social.  
+4. Validar formato de e-mail (regex simples).
+
+- Caso CPF/CNPJ ou e-mail inválidos, exibir mensagens específicas.
+- Após validação, exibir:  
+  - “CPF validado. Nome: [Nome do respondente].” (se disponível)  
+  - “CNPJ validado. Razão Social: [Razão Social da Empresa].”
+
+Anonimização e unicidade:
+- Antes de salvar, gerar:
+  - `cpfHash`
+  - `cnpjHash`
+  - `emailHash`
+- Garantir **resposta única** por indivíduo:
+  - Índice único no MongoDB: `(cpfHash, cnpjHash)` e/ou `(emailHash)`.
+  - Se já existir registro, retornar:  
+    “Você já respondeu este questionário. Cada CPF/e-mail só pode ser usado uma vez.”
+
+4.3 Consentimento LGPD e termos
+
+- Antes do início do questionário, exibir:
+  - Texto de sigilo, confidencialidade, LGPD (baseado na especificação).
+  - Pop-up ou seção com checkboxes obrigatórios:
+    - [ ] Concordo com o Termo de Sigilo e Confidencialidade.
+    - [ ] Concordo com a coleta e processamento dos meus dados conforme a Política de Privacidade (LGPD).
+    - [ ] Entendo que não há respostas certas ou erradas e que minha sinceridade é essencial.
+
+- Se qualquer checkbox não for marcado, impedir avanço para as perguntas.
+
+- Botão: “Concordo e Quero Prosseguir para o Questionário”.
+- Ao clicar, registrar em coleção `Consents`:
+  - `cpfHash`, `emailHash`, `consentDate`, `ipAddress`.
+
+4.4 Armazenamento de dados – Modelo MongoDB
+
+Crie as coleções:
+
+`Responses`:
+- `organization` (String – razão social).
+- `cnpjHash` (String).
+- `department` (String).
+- `cpfHash` (String).
+- `emailHash` (String).
+- `responses` (Array[100] de inteiros 1–5, na ordem Q1–Q100).
+- `createdAt` (Date).
+- `sealTx` (String – hash da transação na blockchain).
+- `cluster` (String – ex.: "Alto Engajamento", "Neutro", "Dissonância Cultural").
+- `fairnessRisk` (Number – ex.: 0.7).
+
+`Consents`:
+- `cpfHash`, `emailHash`, `consentDate`, `ipAddress`.
+
+`Reports`:
+- `reportId` (String).
+- `organization` (String).
+- `department` (String opcional).
+- `type` (String: "individual" | "department" | "organization").
+- `data` (objeto com estatísticas e textos de análise).
+- `createdAt` (Date).
+- `approved` (Boolean).
+
+`Analytics`:
+- `organization`, `department`, `cluster`, `prediction`, `createdAt`.
+
+`Logs`:
+- `action` (String – ex.: "login", "responseSubmitted").
+- `user` (String – e-mail admin ou "respondente").
+- `ipAddress` (String).
+- `timestamp` (Date).
+- Qualquer informação adicional de auditoria.
+
+4.5 Painel administrativo (rota `/admin`)
+
+Autenticação:
+- Usuário admin padrão (para testes):
+  - E-mail: `administrador@ismcbe.com.br`
+  - Senha: `Teste123!`
+- Obligue a troca de senha no primeiro login, com regra:
+  - mínimo 8 caracteres,
+  - letras maiúsculas, minúsculas, números, caractere especial.
+
+Funcionalidades do painel:
+- Login / logout com JWT.
+- Visão geral (dashboard administrativo):
+  - Total de respostas.
+  - Respostas por dia (gráfico de linha).
+  - Quantidade de organizações e departamentos.
+- Gerenciar respostas:
+  - Listagem (CPF hash, organização, departamento, data, status do relatório).
+  - Visualizar detalhes (sem revelar dados pessoais originais).
+  - Excluir resposta (registrar no `Logs`).
+- Gerenciar relatórios:
+  - Gerar relatórios individuais, por departamento e por organização (com agregados).
+  - Aprovar ou rejeitar relatórios.
+  - Após aprovação, marcar `approved = true` e disponibilizar envio ao respondente/organização.
+- Importação via Excel:
+  - Upload de planilha `.xlsx` com colunas: CNPJ, Razão Social, Departamento, CPF, Nome, E-mail.
+  - Validar dados e exibir:
+    - “Importação concluída. X registros adicionados, Y erros.”
+- Envio de links:
+  - Gerar links únicos por campanha (organização).
+  - Gerar QR Code para o link.
+  - Preparar texto padrão para envio via WhatsApp/SMS (não precisa implementar integração completa com Twilio se for complexo – pode deixar função stub).
+
+4.6 Dashboards (IMCO, FDAC, Integrado)
+
+Tecnologia de visualização:
+- Use biblioteca como Chart.js ou outra equivalente no frontend.
+- Ou, se preferir, implemente dashboards diretamente em React usando componentes de gráficos gratuitos.
+
+Dashboards exigidos:
+1) **IMCO Dashboard**:
+   - Gráficos de barras com médias dos vetores: Motivação, Liderança, Filosofia de Gestão, Gestão de Pessoas, Natureza do Trabalho.
+   - Tabelas com médias e desvio padrão por dimensão (Reconhecimento, Comprometimento, etc.).
+   - Scorecard com média geral FDAC também visível.
+
+2) **FDAC Dashboard**:
+   - Gráficos de barras com médias dos pilares: Fairness, Disclosure, Accountability, Compliance.
+   - Tabelas com médias e desvio padrão por pilar.
+   - Scorecard com média geral FDAC.
+
+3) **Dashboard Integrado**:
+   - Combinar IMCO + FDAC.
+   - Gráfico de dispersão mostrando relação entre médias de IMCO e FDAC por departamento.
+   - Seção “Comparação de Resultados” (ex.: Motivação vs Fairness, etc.).
+
+Filtros em todos os dashboards:
+- Organização.
+- Departamento.
+- Período (opcional, se viável).
+
+Exportação:
+- Botões:
+  - Exportar PDF.
+  - Exportar Excel.
+  - Exportar Word.
+- O arquivo deve incluir:
+  - logotipo ISMCBE (pode usar URL de placeholder),
+  - data de geração,
+  - filtros aplicados.
+
+Controle de acesso:
+- Dashboards só podem ser acessados por usuários autenticados (admin).
+- Se usuário não autenticado acessar, mostrar mensagem:
+  “Acesso restrito. Apenas administradores podem visualizar os dashboards.”
+
+====================================================================
+5. MÓDULO DE INTELIGÊNCIA ARTIFICIAL
+====================================================================
+
+5.1 Clustering (K-means)
+- Implementar em Python (Flask API) um endpoint que:
+  - Recebe conjunto de respostas (médias por vetor/pilar ou respostas brutas).
+  - Aplica K-means com 3 clusters:
+    - "Alto Engajamento"
+    - "Neutro"
+    - "Dissonância Cultural"
+  - Retorna cluster de cada respondente ou agrupamento por departamento.
+
+- Exibir no dashboard:
+  - “Distribuição de Clusters: Alto Engajamento X%, Neutro Y%, Dissonância Cultural Z%.”
+
+5.2 Predição (Regressão Linear)
+- Implementar função em Python que:
+  - Usa IMCO (Q1–Q88) como variáveis independentes.
+  - Prediz o risco de dissonância em Fairness (pilar FDAC).
+  - Retorna um valor percentual (0–100%).
+
+- Exemplo de exibição:
+  - “Risco de Dissonância em Fairness: 70% (baseado em baixas pontuações em Motivação e Liderança).”
+
+5.3 Recomendações automáticas
+- Para vetores/pilares com média < 3.5:
+  - Gerar texto de recomendação automática (intervenções sugeridas).
+  - Basear-se em teoria de clima e cultura organizacional (pode gerar textos padrão, mas com tom acadêmico).
+- Essas recomendações devem ser revisáveis pelo admin antes de constarem nos relatórios enviados.
+
+5.4 Ética e vieses
+- Exibir nota nos dashboards:
+  - “Os modelos de IA foram validados para minimizar vieses. Resultados com amostras pequenas (menos de 5 respostas) podem ter menor precisão.”
+
+====================================================================
+6. LGPD, DIREITOS DO TITULAR & “GERENCIAR DADOS”
+====================================================================
+
+Crie página `/gerenciar-dados` onde:
+- Usuário informa CPF ou e-mail.
+- Backend converte para hash.
+- Exibe quais dados existem (forma anonimizada, informações agregadas).
+- Oferece botões para solicitar:
+  - Acesso (visualizar dados).
+  - Correção (atualizar e-mail/departamento).
+  - Exclusão (direito ao esquecimento).
+
+Fluxo:
+- Ao solicitar exclusão:
+  - Registrar pedido em coleção específica.
+  - Mostrar mensagem: “Sua solicitação de exclusão foi recebida e será processada em até 15 dias.”
+  - Criar rotina/endpoint admin para processar essas solicitações:
+    - Excluir dados de Responses/Consents/Analytics/Reports daquele titular.
+    - Enviar e-mail de confirmação (pode ser simulada em console/log).
+
+====================================================================
+7. CONFORMIDADE COM NR (NORMA REGULAMENTADORA)
+====================================================================
+
+[***ATENÇÃO – PREENCHER COM A NR CITADA NO ÁUDIO***]
+
+Incorpore ao sistema requisitos de conformidade com a **Norma Regulamentadora NR-XX – [NOME DA NR]**, conforme orientações do cliente, incluindo:
+
+- Contexto da NR e relação com clima/cultura organizacional;
+- Campos adicionais no questionário (se houver) para avaliar aderência à NR;
+- Itens nos relatórios que mencionem explicitamente a NR-XX e seus requisitos principais;
+- Recomendações de melhoria alinhadas à NR-XX;
+- Qualquer métrica específica que o cliente tenha pedido para essa NR.
+
+Use este bloco como referência e implemente:
+- Um campo no painel admin para cadastrar/alterar o texto-base da NR.
+- Uma seção nos relatórios ("Conformidade com NR-XX") que:
+  - Sintetiza o nível de aderência,
+  - Destaque pontos fortes e fracos,
+  - Traga recomendações práticas.
+
+====================================================================
+8. INTEGRAÇÃO COM SITE E PORTABILIDADE
+====================================================================
+
+Integração via iframe:
+- Fornecer no README e na tela admin o trecho:
+  `<iframe src="https://[SUA-APP].replit.app/form" width="100%" height="600px" frameborder="0" title="Questionário IMCO e FDAC"></iframe>`
+
+Portabilidade e responsividade:
+- Certificar que o frontend funciona bem em:
+  - Android / iOS (smartphones),
+  - Desktop (Windows, macOS, ChromeOS),
+  - Tablets (iPadOS, Android tablets).
+- Testar em navegadores modernos (Chrome, Firefox, Safari, Edge, Opera).
+
+====================================================================
+9. SEED DE DADOS E TESTES
+====================================================================
+
+- Popular o banco com **10 respostas de teste**, simulando:
+  - Pelo menos 2 organizações (CNPJs fictícios).
+  - Pelo menos 3 departamentos distintos.
+  - Respostas que gerem médias altas, médias e baixas para demonstrar dashboards e IA.
+
+- Criar um README detalhado com:
+  - Como rodar o backend, frontend e serviço de IA no Replit.
+  - URLs finais (formulário, admin, API IA).
+  - Credenciais do admin de teste.
+  - Instruções para testar:
+    - Resposta única.
+    - Consentimento LGPD.
+    - Geração de relatório.
+    - Dashboards e IA.
+
+====================================================================
+10. O QUE VOCÊ (AGENTE DO REPLIT) DEVE ENTREGAR
+====================================================================
+
+1. Projeto organizado com `/frontend`, `/backend`, `/ai`.
+2. Configuração de dependências (`package.json`, `requirements.txt`).
+3. Código funcional do formulário, API backend, serviço IA.
+4. Modelos de dados no MongoDB conforme descrito.
+5. Painel admin com login, dashboards e gerenciamento.
+6. Integração básica com blockchain (mock ou real na Polygon Mumbai, conforme viabilidade).
+7. README com:
+   - Passo a passo para rodar,
+   - URLs,
+   - Credenciais de teste,
+   - Descrição de LGPD, NR-XX e segurança.
+
+Implemente tudo priorizando:
+- Simplicidade (protótipo),
+- Conformidade com LGPD,
+- Coerência com a descrição acima,
+- Custo zero de licenças.
+
+Se algum ponto não puder ser implementado por limitação do ambiente do Replit, documente claramente no README o que foi feito, o que ficou como stub e como poderá ser completado futuramente.
