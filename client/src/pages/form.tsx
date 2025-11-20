@@ -7,13 +7,12 @@ import { Label } from "@/components/ui/label";
 import { useSurvey } from "@/lib/survey-context";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { questions } from "@/lib/questions";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Send } from "lucide-react";
 
 const QUESTIONS_PER_PAGE = 10;
 
 export default function FormPage() {
-  const { data, updateAnswer } = useSurvey();
+  const { data, updateAnswer, questions } = useSurvey(); // Use questions from context
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(0);
@@ -35,11 +34,6 @@ export default function FormPage() {
   const progress = (Object.keys(data.answers).length / questions.length) * 100;
   const isLastPage = currentPage === totalPages - 1;
 
-  // Check if FDAC note needs to be shown (page 9 starts with Q91, page 8 ends at Q90)
-  // FDAC starts at Q89. Q89 is index 88.
-  // Page 0: 0-9
-  // ...
-  // Page 8: 80-89 (Contains start of FDAC)
   const showFDACNote = currentQuestions.some(q => q.type === "FDAC");
 
   const handleNext = () => {

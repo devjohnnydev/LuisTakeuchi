@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { questions as initialQuestions, Question } from "./questions";
 
 type SurveyData = {
   consents: {
@@ -19,9 +20,11 @@ type SurveyData = {
 
 type SurveyContextType = {
   data: SurveyData;
+  questions: Question[];
   updateConsents: (consents: SurveyData["consents"]) => void;
   updateIdentity: (identity: SurveyData["identity"]) => void;
   updateAnswer: (questionId: number, value: number) => void;
+  updateQuestion: (id: number, text: string) => void;
   resetSurvey: () => void;
 };
 
@@ -44,6 +47,7 @@ const SurveyContext = createContext<SurveyContextType | undefined>(undefined);
 
 export function SurveyProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<SurveyData>(defaultData);
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
 
   const updateConsents = (consents: SurveyData["consents"]) => {
     setData((prev) => ({ ...prev, consents }));
@@ -60,13 +64,27 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const updateQuestion = (id: number, text: string) => {
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, text } : q))
+    );
+  };
+
   const resetSurvey = () => {
     setData(defaultData);
   };
 
   return (
     <SurveyContext.Provider
-      value={{ data, updateConsents, updateIdentity, updateAnswer, resetSurvey }}
+      value={{ 
+        data, 
+        questions,
+        updateConsents, 
+        updateIdentity, 
+        updateAnswer, 
+        updateQuestion,
+        resetSurvey 
+      }}
     >
       {children}
     </SurveyContext.Provider>
