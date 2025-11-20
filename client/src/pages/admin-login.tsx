@@ -21,7 +21,7 @@ export default function AdminLogin() {
     // Mock login - Accept both 'admin' and 'administrador' for usability
     setTimeout(() => {
       setIsLoading(false);
-      const validEmails = ["administrador@ismcbe.com.br", "admin@ismcbe.com.br"];
+      const validEmails = ["admin@empresa.com.br", "administrador@ismcbe.com.br", "admin@ismcbe.com.br"];
       
       if (validEmails.includes(email) && password === "Teste123!") {
         setLocation("/admin/dashboard");
@@ -40,7 +40,7 @@ export default function AdminLogin() {
   };
 
   const fillCredentials = () => {
-    setEmail("administrador@ismcbe.com.br");
+    setEmail("admin@empresa.com.br");
     setPassword("Teste123!");
     toast({
       title: "Credenciais Preenchidas",
@@ -50,16 +50,16 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full border-slate-800 bg-slate-950 text-slate-50 shadow-2xl shadow-blue-900/20">
+      <Card className="max-w-md w-full border-slate-800 bg-slate-950 text-slate-50 shadow-2xl shadow-emerald-900/20">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-blue-600/20 rounded-full ring-1 ring-blue-500/50">
-              <Lock className="h-8 w-8 text-blue-500" />
+            <div className="p-3 bg-emerald-600/20 rounded-full ring-1 ring-emerald-500/50">
+              <Lock className="h-8 w-8 text-emerald-500" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Acesso Administrativo</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">Acesso Gestor SIMSaM</CardTitle>
           <CardDescription className="text-slate-400">
-            Entre com suas credenciais para acessar o painel SIMDCCO.
+            Entre com suas credenciais para acessar o painel PGR.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,8 +69,8 @@ export default function AdminLogin() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="administrador@ismcbe.com.br" 
-                className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                placeholder="admin@empresa.com.br" 
+                className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 focus-visible:ring-emerald-500 focus-visible:border-emerald-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -82,7 +82,7 @@ export default function AdminLogin() {
               <Input 
                 id="password" 
                 type="password" 
-                className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 focus-visible:ring-emerald-500 focus-visible:border-emerald-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -91,7 +91,7 @@ export default function AdminLogin() {
             <div className="space-y-3 pt-2">
               <Button 
                 type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium h-11"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium h-11"
                 disabled={isLoading}
               >
                 {isLoading ? "Autenticando..." : "Acessar Painel"}
@@ -107,6 +107,7 @@ export default function AdminLogin() {
                 Preencher Credenciais (Demo)
               </Button>
             </div>
+
             
             <div className="text-center text-xs text-slate-600 mt-6 border-t border-slate-900 pt-4">
               Acesso restrito e monitorado. IP registrado para auditoria.
