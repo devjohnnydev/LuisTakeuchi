@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSurvey } from "@/lib/survey-context";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -9,15 +8,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormMessage, FormLabel } from "@/components/ui/form";
-import { ArrowLeft, Building2, User, Mail, Briefcase } from "lucide-react";
+import { ArrowLeft, User, Mail, Hash, Building } from "lucide-react";
 import { Link } from "wouter";
 
 // Schema for validation
 const identitySchema = z.object({
-  cpf: z.string().min(11, "CPF inválido").max(14, "CPF inválido"),
-  cnpj: z.string().min(14, "CNPJ inválido").max(18, "CNPJ inválido"),
+  code: z.string().min(2, "Matrícula/Código é obrigatório"),
   email: z.string().email("E-mail inválido"),
-  department: z.string().min(2, "Departamento é obrigatório"),
+  name: z.string().min(3, "Nome é obrigatório"),
+  sector: z.string().min(2, "Setor/Centro de Custo é obrigatório"),
 });
 
 type IdentityFormValues = z.infer<typeof identitySchema>;
@@ -30,29 +29,23 @@ export default function Identify() {
   const form = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
     defaultValues: {
-      cpf: "",
-      cnpj: "",
+      code: "",
       email: "",
-      department: "",
+      name: "",
+      sector: "",
     },
   });
 
   const onSubmit = async (values: IdentityFormValues) => {
-    // Simulate API lookup delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // In a real app, we would validate CPF/CNPJ against an API here
-    // and check for uniqueness.
+    await new Promise((resolve) => setTimeout(resolve, 800));
     
     updateIdentity({
       ...values,
-      name: "Usuário Teste", // Mocked
-      companyName: "Empresa Exemplo LTDA", // Mocked
     });
 
     toast({
-      title: "Identificação Validada",
-      description: `Bem-vindo, Usuário Teste. Empresa: Empresa Exemplo LTDA.`,
+      title: "Acesso Liberado",
+      description: `Bem-vindo, ${values.name}. Campanha: Avaliação Q1 2026.`,
     });
 
     setLocation("/form");
@@ -60,7 +53,7 @@ export default function Identify() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="max-w-xl w-full shadow-xl border-t-4 border-t-primary">
+      <Card className="max-w-xl w-full shadow-xl border-t-4 border-t-emerald-600">
         <CardHeader className="space-y-2 pb-6 border-b">
           <div className="flex items-center gap-2 text-muted-foreground mb-2">
              <Link href="/consent">
@@ -69,9 +62,9 @@ export default function Identify() {
                </Button>
              </Link>
           </div>
-          <CardTitle className="text-2xl text-primary">Identificação</CardTitle>
+          <CardTitle className="text-2xl text-emerald-700">Identificação do Colaborador</CardTitle>
           <CardDescription>
-            Seus dados são utilizados apenas para validar sua participação e gerar os relatórios.
+            Informe seus dados para vincular suas respostas ao Centro de Custo correto.
           </CardDescription>
         </CardHeader>
 
@@ -81,30 +74,14 @@ export default function Identify() {
               
               <FormField
                 control={form.control}
-                name="cpf"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" /> CPF
+                      <User className="h-4 w-4 text-muted-foreground" /> Nome Completo
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="000.000.000-00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cnpj"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" /> CNPJ da Organização
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="00.000.000/0000-00" {...field} />
+                      <Input placeholder="Seu nome" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,34 +97,52 @@ export default function Identify() {
                       <Mail className="h-4 w-4 text-muted-foreground" /> E-mail Corporativo
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="seu.nome@empresa.com.br" {...field} />
+                      <Input placeholder="seu.email@empresa.com.br" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="department"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" /> Departamento
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Recursos Humanos" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-muted-foreground" /> Matrícula / Código
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex: 12345" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sector"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" /> Setor / CC
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex: Produção, TI..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="pt-4">
                 <Button 
                   type="submit" 
                   size="lg" 
-                  className="w-full font-semibold shadow-lg shadow-primary/20"
+                  className="w-full font-semibold shadow-lg shadow-emerald-600/20 bg-emerald-600 hover:bg-emerald-700 text-white"
                   disabled={form.formState.isSubmitting}
                 >
                   {form.formState.isSubmitting ? "Validando..." : "Iniciar Questionário"}

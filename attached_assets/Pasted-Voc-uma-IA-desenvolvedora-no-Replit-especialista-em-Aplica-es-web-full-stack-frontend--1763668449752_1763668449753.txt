@@ -1,0 +1,410 @@
+Você é uma IA desenvolvedora no Replit, especialista em:
+
+- Aplicações web full stack (frontend + backend)
+- Boas práticas de segurança e LGPD (Lei 13.709/2018)
+- Sistemas focados em Saúde Mental Ocupacional e riscos psicossociais
+- Normas Regulamentadoras brasileiras, em especial a NR-01 (GRO e PGR)
+
+Sua missão é criar um sistema web completo chamado:
+
+SIMSaM NR-01  
+(Sistema Informatizado de Monitoramento da Saúde Mental Ocupacional – NR-01)
+
+Esse sistema tem como objetivo:
+
+1. Ajudar empresas a cumprirem a **NR-01**, incluindo o **Gerenciamento de Riscos Ocupacionais (GRO)** e o **Programa de Gerenciamento de Riscos (PGR)**, com foco em **riscos psicossociais e saúde mental dos trabalhadores**.
+2. Realizar **monitoramento contínuo da saúde mental ocupacional** dos colaboradores.
+3. Gerar **relatórios/laudos** em três níveis:
+   - Individual (colaborador)
+   - Centro de custo / setor
+   - Empresa como um todo
+4. Permitir **acompanhamento evolutivo no tempo** (monitoramento periódico).
+5. NÃO fazer diagnóstico médico, nem prescrever tratamento – apenas **indicadores, alertas de risco e recomendações organizacionais**.
+
+====================================================================
+1. ARQUITETURA GERAL DO PROJETO
+====================================================================
+
+Crie a seguinte estrutura no Replit:
+
+- /frontend
+  - Framework: React (pode ser Vite + React)
+  - Estilização: Tailwind CSS (ou CSS modular simples, se preferir)
+  - Layout responsivo (desktop, tablet, mobile)
+  - Idioma: Português (Brasil)
+
+- /backend
+  - Node.js + Express
+  - Banco de dados: MongoDB (MongoDB Atlas – cluster gratuito)
+  - Autenticação: JWT para administradores da empresa e para o “super administrador” do sistema
+  - LGPD: armazenamento seguro de dados sensíveis (hash + minimização de dados)
+
+- /docs
+  - README técnico
+  - MODELO_PGR_SAUDE_MENTAL.md (texto explicando como usar o sistema dentro do PGR da empresa)
+  - MODELO_LAUDO_EMPRESA.md
+  - MODELO_LAUDO_INDIVIDUAL.md
+
+Utilize Replit Secrets para:
+- MONGODB_URI
+- JWT_SECRET
+- ADMIN_DEFAULT_EMAIL
+- ADMIN_DEFAULT_PASSWORD
+
+====================================================================
+2. CONTEXTO NR-01 E SAÚDE MENTAL
+====================================================================
+
+Considere explicitamente que:
+
+- A **NR-01 – Disposições Gerais e Gerenciamento de Riscos Ocupacionais (GRO)** obriga as empresas a:
+  - Identificar, avaliar e controlar **riscos ocupacionais**, incluindo **riscos psicossociais**.
+  - Manter um **PGR – Programa de Gerenciamento de Riscos**, com inventário de riscos e plano de ação.
+- Riscos psicossociais envolvem temas como:
+  - Estresse ocupacional
+  - Sobrecarga de trabalho
+  - Assédio moral
+  - Falta de apoio da liderança
+  - Falta de reconhecimento
+  - Conflitos internos
+  - Falhas de comunicação
+  - Burnout
+  - Impactos emocionais do trabalho
+
+O sistema SIMSaM NR-01 deve ajudar a empresa a:
+- Demonstrar, documentalmente, que monitora riscos psicossociais.
+- Registrar evidências de acompanhamento e recomendações.
+- Gerar relatórios que possam ser anexados ao **PGR** como parte do **GRO**.
+
+====================================================================
+3. TIPOS DE USUÁRIOS E PERMISSÕES
+====================================================================
+
+Implemente pelo menos três perfis:
+
+1) SUPER ADMINISTRADOR DO SISTEMA (nível fornecedor)
+   - Cria e gerencia empresas clientes
+   - Define plano (quantidade de colaboradores licenciados, se quiser deixar preparado)
+   - Acompanha estatísticas gerais (sem dados pessoais)
+
+2) ADMINISTRADOR DA EMPRESA (cliente)
+   - Cadastra:
+     - Centros de custo / setores
+     - Colaboradores (nome, e-mail, matrícula/código interno)
+   - Gera campanhas de avaliação (ex.: “Avaliação Q1 2026”)
+   - Acompanha dashboards e relatórios consolidados
+   - Exporta laudos (PDF/Word/Excel simples)
+
+3) COLABORADOR (respondente)
+   - Recebe link ou token de participação
+   - Acessa formulário de saúde mental ocupacional
+   - Lê termos de consentimento e sigilo
+   - Responde questionário
+   - Recebe feedback individual resumido em tela e/ou via e-mail (se configurado)
+
+====================================================================
+4. FLUXO DE USO GERAL
+====================================================================
+
+Fluxo esperado:
+
+1. SUPER ADMIN cria uma nova empresa cliente: razão social, CNPJ, contato, e-mail do responsável.
+2. Sistema gera um usuário **ADMIN EMPRESA** com e-mail e senha inicial.
+3. ADMIN EMPRESA:
+   - Acessa painel /admin/{empresa}
+   - Cadastra centros de custo / setores (ex.: “Produção”, “Comercial”, “Atendimento”, “TI”)
+   - Cadastra colaboradores (nome, e-mail, setor, matrícula/código)
+   - Cria uma **campanha de avaliação**:
+     - Nome da campanha
+     - Data de início e fim
+     - Tipo: “Saúde Mental NR-01”
+   - O sistema gera:
+     - Um link geral da empresa + código de campanha
+     - Ou links individualizados com token por colaborador (se quiser simplificar, primeiro faça link geral com campo “código do colaborador” ou e-mail).
+
+4. COLABORADOR acessa o link da campanha:
+   - Informa identificador (ex.: e-mail ou código interno)
+   - Passa pela tela de **Termo de Consentimento LGPD e Esclarecimento**:
+     - Explicar que o sistema NÃO faz diagnóstico médico.
+     - Explicar que as respostas são confidenciais e usadas para fins de monitoramento de riscos psicossociais.
+     - Explicar que os dados podem compor o PGR e relatórios internos.
+     - Checkboxes obrigatórios de concordância.
+   - Responde questionário de saúde mental ocupacional (ver seção 5).
+
+5. Após o envio:
+   - Respostas são armazenadas no banco
+   - É calculado um **índice de risco psicossocial/saúde mental**:
+     - Individual
+     - Por setor / centro de custo
+     - Para a empresa toda
+
+6. ADMIN EMPRESA acessa dashboards:
+   - Visualiza mapas de calor por setor
+   - Visualiza histórico por campanha (comparando períodos)
+   - Gera laudos:
+     - Individual (quando autorizado)
+     - Por setor
+     - Por empresa
+
+====================================================================
+5. QUESTIONÁRIO DE SAÚDE MENTAL OCUPACIONAL
+====================================================================
+
+Implemente um módulo que carregue as perguntas a partir de um JSON, de forma que o ADMIN ou o SUPER ADMIN possa atualizar esse banco de perguntas no futuro.
+
+Estruture o questionário em blocos temáticos (exemplo):
+
+- Bloco 1: Exaustão e Carga de Trabalho
+- Bloco 2: Suporte da Liderança
+- Bloco 3: Clima de Equipe e Relações Interpessoais
+- Bloco 4: Sentido do Trabalho e Reconhecimento
+- Bloco 5: Assédio, Respeito e Segurança Psicológica
+- Bloco 6: Equilíbrio Trabalho–Vida Pessoal
+
+Cada pergunta deve ser respondida em escala Likert de 1 a 5:
+1 = Discordo totalmente  
+2 = Discordo parcialmente  
+3 = Nem concordo, nem discordo  
+4 = Concordo parcialmente  
+5 = Concordo totalmente  
+
+Implemente:
+
+- Mínimo de 20 a 30 perguntas totais para o MVP (você pode criar perguntas iniciais e deixar em comentário que poderão ser substituídas por instrumentos validados).
+- Frontend com:
+  - Barra de progresso (“Pergunta X de Y”)
+  - Botões “Voltar” e “Avançar”
+  - Validação para não deixar pergunta em branco
+- Ao finalizar:
+  - Calcule subescores por bloco (média de cada bloco)
+  - Calcule um índice geral de risco psicossocial, por exemplo:
+    - 1.0 – 2.4: Risco Alto (vermelho)
+    - 2.5 – 3.4: Risco Moderado (amarelo)
+    - 3.5 – 5.0: Risco Baixo (verde)
+
+====================================================================
+6. MODELO DE DADOS (MONGODB)
+====================================================================
+
+Sugestão de coleções:
+
+Collection: companies
+- _id
+- name
+- cnpj
+- contactName
+- contactEmail
+- createdAt
+
+Collection: users
+- _id
+- companyId (null para SUPER ADMIN)
+- role ("SUPER_ADMIN" | "ADMIN_EMPRESA")
+- name
+- email
+- passwordHash
+- createdAt
+- mustChangePassword (bool)
+
+Collection: costCenters
+- _id
+- companyId
+- name
+- code
+- active (bool)
+
+Collection: employees
+- _id
+- companyId
+- costCenterId
+- name
+- email
+- code (matrícula ou identificador interno)
+- active (bool)
+
+Collection: campaigns
+- _id
+- companyId
+- name
+- description
+- startDate
+- endDate
+- status ("draft" | "active" | "closed")
+- createdAt
+
+Collection: responses
+- _id
+- companyId
+- campaignId
+- employeeId (se quiser vincular diretamente)
+- costCenterId
+- answers: array de objetos { questionId, value }
+- scores:
+  - geral: Number
+  - exaustao: Number
+  - suporteLideranca: Number
+  - climaEquipe: Number
+  - sentidoTrabalho: Number
+  - assedioRespeito: Number
+  - equilibrioVida: Number
+- riskLevel ("BAIXO" | "MODERADO" | "ALTO")
+- submittedAt
+
+Collection: questions
+- _id
+- code (ex.: "Q01", "Q02", etc.)
+- text
+- block ("EXAUSTAO", "SUPORTE_LIDERANCA", etc.)
+- order
+
+Collection: consents
+- _id
+- companyId
+- campaignId
+- employeeId or employeeCode
+- ipAddress
+- consentTextVersion
+- consentDate
+
+====================================================================
+7. LGPD E PRIVACIDADE
+====================================================================
+
+Implemente pelo menos:
+
+- Não armazenar CPF obrigatoriamente (para MVP). Caso seja incluído no futuro, armazenar sempre em forma de hash.
+- Guardar apenas o mínimo necessário:
+  - Nome
+  - E-mail
+  - Setor / Centro de custo
+  - Código interno
+- Implementar endpoint de **consulta e exclusão de dados** por e-mail ou código interno:
+  - `/lgpd/consulta`
+  - `/lgpd/solicitar-exclusao`
+- Criar texto padrão de consentimento no frontend, explicando:
+  - Finalidade das informações
+  - Base legal (legítimo interesse/prevenção e proteção à saúde do trabalhador, em linha com NR-01)
+  - Que não se trata de diagnóstico médico
+  - Direitos de acesso, correção e exclusão
+
+====================================================================
+8. DASHBOARDS E RELATÓRIOS
+====================================================================
+
+Painel ADMIN EMPRESA deve ter:
+
+1) Visão Geral
+   - Número de colaboradores avaliados por campanha
+   - Percentual de adesão (respondidos / total)
+   - Mapa de risco por campanha:
+     - % de BAIXO, MODERADO, ALTO risco
+
+2) Visão por Centro de Custo
+   - Lista de centros de custo com:
+     - Média geral de saúde mental
+     - Nível de risco dominante
+   - Gráfico de barras comparando setores
+
+3) Evolução no Tempo
+   - Linha do tempo por campanha para:
+     - Média geral da empresa
+     - Média de um centro de custo específico
+   - Objetivo: mostrar se as ações da empresa estão melhorando ou piorando o índice de saúde mental ocupacional ao longo do tempo.
+
+4) Relatórios / Laudos
+   - Gerar PDF simples (ou página HTML preparada para impressão) com:
+     - Cabeçalho com nome da empresa, CNPJ, data, nome da campanha
+     - Explicação curta da metodologia
+     - Indicadores quantitativos
+     - Interpretação simples do risco:
+       - BAIXO: condições favoráveis, manter e aprimorar.
+       - MODERADO: atenção, implementar ações estruturadas.
+       - ALTO: risco significativo, necessidade de intervenção imediata.
+     - Campo de “Recomendações” automáticas baseadas nos blocos com pior média.
+
+   - Tipos de laudo:
+     - Laudo por empresa (consolidado)
+     - Laudo por centro de custo
+     - Laudo individual (somente se a política da empresa permitir e sempre reforçando que não é diagnóstico médico)
+
+====================================================================
+9. ALINHAMENTO EXPLÍCITO COM A NR-01 (GRO/PGR)
+====================================================================
+
+No README e em textos dentro do sistema, destaque:
+
+- Que o sistema SIMSaM NR-01 apoia o **Gerenciamento de Riscos Ocupacionais (GRO)** e o **Programa de Gerenciamento de Riscos (PGR)** previstos na NR-01.
+- Que os riscos avaliados são **riscos psicossociais**, relacionados à saúde mental no trabalho.
+- Que os relatórios podem ser anexados ao PGR como:
+  - Evidência de **identificação e avaliação de riscos**
+  - Base para plano de ação (gestão de clima, liderança, carga de trabalho, prevenção a assédio, etc.)
+- Que o sistema gera:
+  - Inventário de fatores psicossociais (por blocos do questionário)
+  - Indicadores de risco por centro de custo
+  - Histórico das campanhas
+
+Criar um endpoint ou página de ajuda: `/ajuda/nr01` explicando, em linguagem simples:
+
+- O que é a NR-01
+- O que é GRO
+- O que é PGR
+- Como os relatórios do sistema podem ser usados pelo técnico de segurança / médico do trabalho / psicólogo organizacional na construção do PGR.
+
+====================================================================
+10. LIMITAÇÕES E AVISOS IMPORTANTES (ÉTICA E RESPONSABILIDADE)
+====================================================================
+
+Implemente em todas as telas de relatório uma nota clara:
+
+- “Este sistema NÃO realiza diagnóstico médico ou psicológico.  
+  Os resultados representam apenas indicadores de risco psicossocial e saúde mental ocupacional, devendo ser analisados por profissionais habilitados e utilizados como subsídio para ações de prevenção e promoção de saúde.”
+
+No README, deixe claro:
+
+- Este é um protótipo para fins educacionais e de demonstração.
+- Para uso real em larga escala, recomenda-se:
+  - validação psicométrica dos instrumentos de medida,
+  - parecer de psicólogo do trabalho/organizacional,
+  - revisão jurídica específica para LGPD e legislação trabalhista.
+
+====================================================================
+11. O QUE VOCÊ (IA DO REPLIT) DEVE ENTREGAR
+====================================================================
+
+1. Backend Node.js/Express com:
+   - Rotas de autenticação (login/logout admin)
+   - CRUD de empresas, centros de custo, colaboradores
+   - CRUD de campanhas
+   - Endpoint para salvar respostas do questionário
+   - Cálculo de scores e classificação de risco
+   - Endpoints de dashboards (dados agregados)
+   - Endpoints LGPD (consulta/exclusão)
+
+2. Frontend React com:
+   - Tela de login admin
+   - Painel ADMIN EMPRESA com:
+     - Visão geral
+     - Lista de colaboradores
+     - Lista de campanhas
+     - Dashboards (pode usar alguma lib de gráficos simples)
+   - Tela pública de campanha com:
+     - Identificação do colaborador
+     - Termo de consentimento
+     - Questionário com progresso
+     - Tela de feedback final
+
+3. Modelo de dados MongoDB coerente com o descrito.
+
+4. README detalhado com:
+   - Como rodar o backend e o frontend no Replit
+   - Variáveis de ambiente necessárias
+   - Usuário e senha padrões (SUPER ADMIN)
+   - Fluxo de uso básico (cadastro empresa → campanha → resposta → dashboard → relatório)
+   - Explicação de como o sistema se alinha à NR-01 e ao GRO/PGR.
+
+Implemente tudo priorizando:
+
+- Clareza de código
+- Organização de pastas
+- Segurança básica (sem senhas em texto plano, uso de JWT)
+- Facilidade de evolução futura (para incluir IA, relatórios avançados, integração com outros sistemas).

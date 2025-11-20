@@ -1,19 +1,17 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { questions as initialQuestions, Question } from "./questions";
+import { questions as initialQuestions, Question, blocks } from "./questions";
 
 type SurveyData = {
   consents: {
-    confidentiality: boolean;
     lgpd: boolean;
-    sincerity: boolean;
+    medicalDisclaimer: boolean;
+    confidentiality: boolean;
   };
   identity: {
-    cpf: string;
-    cnpj: string;
+    code: string; // Matrícula/Código Interno
     email: string;
-    department: string;
     name?: string;
-    companyName?: string;
+    sector?: string; // Centro de Custo/Setor
   };
   answers: Record<number, number>;
 };
@@ -26,19 +24,18 @@ type SurveyContextType = {
   updateAnswer: (questionId: number, value: number) => void;
   updateQuestion: (id: number, text: string) => void;
   resetSurvey: () => void;
+  calculateScores: () => { blockScores: Record<string, number>; riskLevel: "BAIXO" | "MODERADO" | "ALTO"; totalScore: number };
 };
 
 const defaultData: SurveyData = {
   consents: {
-    confidentiality: false,
     lgpd: false,
-    sincerity: false,
+    medicalDisclaimer: false,
+    confidentiality: false,
   },
   identity: {
-    cpf: "",
-    cnpj: "",
+    code: "",
     email: "",
-    department: "",
   },
   answers: {},
 };
@@ -74,6 +71,66 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     setData(defaultData);
   };
 
+  const calculateScores = () => {
+    const blockScores: Record<string, number> = {};
+    let totalSum = 0;
+    let totalCount = 0;
+
+    blocks.forEach((block) => {
+      const blockQuestions = questions.filter((q) => q.block === block);
+      const blockSum = blockQuestions.reduce((sum, q) => sum + (data.answers[q.id] || 0), 0);
+      const blockAvg = blockQuestions.length > 0 ? blockSum / blockQuestions.length : 0;
+      blockScores[block] = blockAvg;
+      
+      totalSum += blockSum;
+      totalCount += blockQuestions.length;
+    });
+
+    const totalAvg = totalCount > 0 ? totalSum / totalCount : 0;
+
+    // Risk Logic (Inverted logic: 1 is Bad, 5 is Good in Likert typically, 
+    // BUT for "Exhaustion" high score might mean high exhaustion depending on phrasing.
+    // Let's assume the questions are phrased positively or negatively?
+    // Looking at questions:
+    // Q1: "Sinto-me emocionalmente esgotado" -> 5 is BAD (High Risk)
+    // Q5: "Meu gestor demonstra preocupação" -> 5 is GOOD (Low Risk)
+    // This requires normalization. For simplicity in this prototype, 
+    // let's assume we want HIGH score = GOOD HEALTH (Low Risk).
+    // So we need to invert Negative questions.
+    
+    // Negative Blocks: "Exaustão e Carga de Trabalho"
+    // Questions 1, 2, 3, 4 are negative. 5=High Risk.
+    // We should invert them for the general score: 6 - value.
+    
+    // Let's re-calculate with normalization
+    let normalizedTotalSum = 0;
+    
+    blocks.forEach(block => {
+        const blockQuestions = questions.filter(q => q.block === block);
+        let blockSum = 0;
+        
+        blockQuestions.forEach(q => {
+            let val = data.answers[q.id] || 3; // default neutral if missing (shouldn't happen)
+            if (block === "Exaustão e Carga de Trabalho") {
+                val = 6 - val; // Invert: 5->1 (Bad), 1->5 (Good)
+            }
+            blockSum += val;
+        });
+        
+        blockScores[block] = blockSum / blockQuestions.length;
+        normalizedTotalSum += blockSum;
+    });
+
+    const normalizedAvg = normalizedTotalSum / questions.length;
+
+    let riskLevel: "BAIXO" | "MODERADO" | "ALTO" = "MODERADO";
+    if (normalizedAvg >= 3.5) riskLevel = "BAIXO"; // Good health
+    else if (normalizedAvg >= 2.5) riskLevel = "MODERADO";
+    else riskLevel = "ALTO"; // Poor health
+
+    return { blockScores, riskLevel, totalScore: normalizedAvg };
+  };
+
   return (
     <SurveyContext.Provider
       value={{ 
@@ -83,7 +140,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         updateIdentity, 
         updateAnswer, 
         updateQuestion,
-        resetSurvey 
+        resetSurvey,
+        calculateScores
       }}
     >
       {children}
